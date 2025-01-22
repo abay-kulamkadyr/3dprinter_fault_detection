@@ -1,7 +1,7 @@
 import cv2
 
 class CameraGStreamerPipeline:
-    def __init__(self, device="/dev/video0", width=640, height=480, framerate=30):
+    def __init__(self, device="/dev/video0", width=1920, height=1080, framerate=30):
         self.pipeline = (
             f"v4l2src device={device} ! "
             f"image/jpeg, width={width}, height={height}, framerate={framerate}/1 ! "
