@@ -30,6 +30,25 @@ def main() -> None:
     base_url = "http://192.168.31.100:7125"
     klippy = KlippyAPI(base_url)
 
+    def send_action_list(chat_id):
+        """
+        Sends a list of available actions to the user.
+        """
+        actions = (
+            "/info - Get printer info\n"
+            "/list - List printer objects\n"
+            "/restart_host - Restart the host\n"
+            "/restart_firmware - Restart firmware\n"
+            "/extruder - Get extruder status\n"
+            "/emergency_stop - Emergency stop\n"
+            "/pause - Pause the print\n"
+            "/resume - Resume the print\n"
+            "/temperatures - Get current temperatures\n"
+            "/motion_state - Get motion state\n"
+            "/job_status - Get print job status\n"
+        )
+        bot.send_message(chat_id, f"Available actions:\n{actions}")
+
     @bot.message_handler(commands=['start', 'hello'])
     def send_welcome(message):
         """
@@ -116,12 +135,51 @@ def main() -> None:
             response = klippy.resume()
             bot.reply_to(message, f"Printer's response: {response}")
 
+    @bot.message_handler(commands=['temperatures'])
+    def get_temperatures(message):
+        """
+        Handle the /temperatures command to fetch current temperatures.
+        """
+        if message.chat.id in CHAT_IDS:
+            temperatures = klippy.get_current_temperatures()
+            bot.reply_to(message, "Current Temperatures:\n" + compose_message(temperatures))
+
+    @bot.message_handler(commands=['motion_state'])
+    def get_motion_state(message):
+        """
+        Handle the /motion_state command to fetch the motion state.
+        """
+        if message.chat.id in CHAT_IDS:
+            motion_state = klippy.get_motion_state()
+            bot.reply_to(message, "Motion State:\n" + compose_message(motion_state))
+
+    @bot.message_handler(commands=['job_status'])
+    def get_job_status(message):
+        """
+        Handle the /job_status command to fetch the print job status.
+        """
+        if message.chat.id in CHAT_IDS:
+            job_status = klippy.get_print_job_status()
+            bot.reply_to(message, "Print Job Status:\n" + compose_message(job_status))
+
+    def handle_detection_event(chat_id):
+        """
+        Handle an external detection event and provide action options.
+        """
+        if chat_id in CHAT_IDS:
+            bot.send_message(chat_id, "⚠️ Detection Event Received! ⚠️")
+            send_action_list(chat_id)
+
     @bot.message_handler(func=lambda msg: True)
     def echo_all(message):
         """
         Echo any unrecognized messages back to the sender.
         """
         bot.reply_to(message, "Unknown command. Please use a valid command.")
+
+    # Example external detection event trigger (replace or integrate as needed)
+    # This should be called from an external module when detection occurs.
+    handle_detection_event(1969139002)
 
     # Start the bot's polling loop
     bot.infinity_polling()

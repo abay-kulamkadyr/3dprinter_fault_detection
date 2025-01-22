@@ -42,6 +42,39 @@ class KlippyAPI:
         response.raise_for_status()
         return response.json()
 
+    def get_current_temperatures(self):
+        """
+        Get current and target temperatures for the extruder and heated bed.
+
+        :return: JSON response containing temperatures.
+        """
+        url = f"{self.base_url}/printer/objects/query?heater_bed&extruder"
+        response = self.session.get(url)
+        response.raise_for_status()
+        return response.json()
+
+    def get_motion_state(self):
+        """
+        Get the motion state of the printer, including position and velocity.
+
+        :return: JSON response containing motion state.
+        """
+        url = f"{self.base_url}/printer/objects/query?toolhead"
+        response = self.session.get(url)
+        response.raise_for_status()
+        return response.json()
+
+    def get_print_job_status(self):
+        """
+        Get the current print job status, including progress and estimated time remaining.
+
+        :return: JSON response containing print job status.
+        """
+        url = f"{self.base_url}/api/job"
+        response = self.session.get(url)
+        response.raise_for_status()
+        return response.json()
+
     def emergency_stop(self):
         """
         Trigger an emergency stop.
@@ -134,6 +167,18 @@ if __name__ == "__main__":
         # Get printer info
         printer_info = klippy.get_printer_info()
         print("Printer Info:", printer_info)
+
+        # Get current temperatures
+        temperatures = klippy.get_current_temperatures()
+        print("Temperatures:", temperatures)
+
+        # Get motion state
+        motion_state = klippy.get_motion_state()
+        print("Motion State:", motion_state)
+
+        # Get print job status
+        job_status = klippy.get_print_job_status()
+        print("Print Job Status:", job_status)
 
         # List printer objects
         printer_objects = klippy.list_printer_objects()
