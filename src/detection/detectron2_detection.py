@@ -49,13 +49,13 @@ class Detectron2Detection:
                 self.detection_callback(detection_path)
 
             # Pause if a fault is detected
-            cv2.imshow("Fault Detected", detection_frame)
-            print("Fault detected. Press any key to continue or 'q' to exit.")
-            key = cv2.waitKey(0)  # Wait indefinitely for a key press
+            #cv2.imshow("Fault Detected", detection_frame)
+            #print("Fault detected. Press any key to continue or 'q' to exit.")
+            #key = cv2.waitKey(0)  # Wait indefinitely for a key press
 
-            if key == ord('q'):
-                print("Exiting detection loop.")
-                return None
+            #if key == ord('q'):
+            #    print("Exiting detection loop.")
+            #    return None
             return detection_frame
         else:
             print("No detections found.")

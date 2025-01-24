@@ -70,7 +70,7 @@ class KlippyAPI:
 
         :return: JSON response containing print job status.
         """
-        url = f"{self.base_url}/api/job"
+        url = f"{self.base_url}/printer/objects/query?print_stats"
         response = self.session.get(url)
         response.raise_for_status()
         return response.json()

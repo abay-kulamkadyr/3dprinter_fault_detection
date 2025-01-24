@@ -11,41 +11,22 @@ from utils.camera_gstreamer_module import CameraGStreamerPipeline
 mouse_positions = []
 boundary_set = False
 
-
-def send_telegram_notification(bot_token, chat_id, message, image_path=None):
-    """
-    Sends a notification to a Telegram chat with an optional image.
-    """
-    try:
-        api_url_message = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        payload = {"chat_id": chat_id, "text": message}
-        response = requests.post(api_url_message, json=payload, timeout=30)
-        response.raise_for_status()
-
-        if image_path:
-            api_url_photo = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
-            with open(image_path, "rb") as photo_file:
-                files = {"photo": photo_file}
-                data = {"chat_id": chat_id}
-                response = requests.post(api_url_photo, data=data, files=files, timeout=30)
-                response.raise_for_status()
-        logging.info("Notification sent successfully")
-
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Failed to send Telegram notification: {e}")
-
+chat_ids = [1969139002, 1430460059, 52338470, 987449095]
 
 def notify_on_detection(image_path):
     """
-    Callback function triggered on detection.
+    Called by Detectron2 whenever a fault is detected.
+    We POST to the bot's Flask endpoint with the `image_path`.
     """
-    bot_token = os.getenv('BOT_TOKEN')
-    message = "\u26A0\uFE0F Fault detected during 3D printing! \u26A0\uFE0F"
-
-    chat_ids = [1969139002, 1430460059, 52338470, 987449095]
-    for chat_id in chat_ids:
-        send_telegram_notification(bot_token, chat_id, message, image_path)
-
+    try:
+        # If the bot.py is running locally on port 5000:
+        url = "http://127.0.0.1:5000/detection_event"
+        data = {"image_path": image_path}
+        response = requests.post(url, json=data)
+        response.raise_for_status()
+        logging.info("Successfully notified bot of detection event.")
+    except Exception as e:
+        logging.error(f"Failed to notify bot: {e}")
 
 def mouse_callback(event, x, y, flags, param):
     """
@@ -58,14 +39,14 @@ def mouse_callback(event, x, y, flags, param):
         if len(mouse_positions) == 2:
             boundary_set = True
 
-
 def main():
     global mouse_positions, boundary_set
 
     # Configuration
     weights_file = "../data/models/model_final.pth"
     detections_dir = "../data/detections"
-    detection_interval = 60  # Interval between detections in seconds
+    frames_dir = "../data/frames"
+    detection_interval = 180# Interval between detections in seconds
 
     # Initialize detection and video pipeline
     detectron2 = Detectron2Detection(weights_file, detections_dir, detection_callback=notify_on_detection)
@@ -140,7 +121,8 @@ def main():
 
             # Display the live feed
             cv2.imshow("Detectron2 Detection", frame)
-
+            last_frame_path = os.path.join(frames_dir, "latest_frame.jpg")  
+            cv2.imwrite(last_frame_path, frame)            
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
