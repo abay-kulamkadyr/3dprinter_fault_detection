@@ -1,4 +1,3 @@
-
 import os
 import threading
 import logging
@@ -40,6 +39,9 @@ klippy = KlippyAPI(base_url)
 # Create Flask app
 app = Flask(__name__)
 
+# Track dangerous command confirmations:
+# Key: user_id, Value: the command user is trying to confirm
+pending_confirmations = {}
 ################################################################################
 #                          HELPER PARSING FUNCTIONS
 ################################################################################
@@ -319,11 +321,40 @@ def cmd_motion_state(message):
         logging.error(f"Error in /motion_state command: {e}")
         bot.reply_to(message, "❌ Could not retrieve motion state.")
 
+def needs_confirmation(user_id: int, command_name: str) -> bool:
+    """
+    Checks if user must confirm the command. If there's already a pending
+    confirmation for the exact same user + command, return False
+    (meaning "already requested, so let's proceed").
+    Otherwise, set a new pending confirmation and return True
+    (meaning "we need to ask the user to confirm").
+    """
+    if pending_confirmations.get(user_id) == command_name:
+        # If we get here, it means the user has already been asked
+        # and is calling the same command again => proceed and clear.
+        pending_confirmations.pop(user_id, None)
+        return False
+    else:
+        # If there's some other pending command for this user,
+        # we can override it or remove it. For simplicity:
+        pending_confirmations[user_id] = command_name
+        return True
+
 @bot.message_handler(commands=['restart_host'])
 def cmd_restart_host(message):
     if message.chat.id not in CHAT_IDS:
         bot.reply_to(message, "🚫 You are not authorized to use this bot.")
         return
+
+    # Check if we need to confirm first
+    if needs_confirmation(message.chat.id, 'restart_host'):
+        bot.reply_to(
+            message,
+            "⚠️ You are about to restart the host. Type /restart_host again to confirm."
+        )
+        return
+
+    # If confirmation was already given, do the actual command
     try:
         response = klippy.restart_host()
         bot.reply_to(message, f"🔄 Host restart response:\n{response}")
@@ -331,11 +362,22 @@ def cmd_restart_host(message):
         logging.error(f"Error in /restart_host command: {e}")
         bot.reply_to(message, "❌ Could not restart host.")
 
+
 @bot.message_handler(commands=['restart_firmware'])
 def cmd_restart_firmware(message):
     if message.chat.id not in CHAT_IDS:
         bot.reply_to(message, "🚫 You are not authorized to use this bot.")
         return
+
+    # Check confirmation
+    if needs_confirmation(message.chat.id, 'restart_firmware'):
+        bot.reply_to(
+            message,
+            "⚠️ You are about to restart the firmware. Type /restart_firmware again to confirm."
+        )
+        return
+
+    # Execute after confirmation
     try:
         response = klippy.firmware_restart()
         bot.reply_to(message, f"🔄 Firmware restart response:\n{response}")
@@ -348,6 +390,16 @@ def cmd_emergency_stop(message):
     if message.chat.id not in CHAT_IDS:
         bot.reply_to(message, "🚫 You are not authorized to use this bot.")
         return
+
+    # Check confirmation
+    if needs_confirmation(message.chat.id, 'emergency_stop'):
+        bot.reply_to(
+            message,
+            "⚠️ EMERGENCY STOP requested. Type /emergency_stop again to confirm."
+        )
+        return
+
+    # Execute after confirmation
     try:
         response = klippy.emergency_stop()
         bot.reply_to(message, f"🛑 Emergency Stop:\n{response}")
