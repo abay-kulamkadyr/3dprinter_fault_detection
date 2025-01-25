@@ -2,8 +2,12 @@ import os
 import threading
 import logging
 import telebot
+import time
+import signal
+import sys
 from flask import Flask, request, jsonify
 from klippy_api.KlippyAPI import KlippyAPI
+from utils.real_time_streaming_pipeline import StreamLauncher
 
 ################################################################################
 #                       CONFIGURATION & LOGGING
@@ -36,6 +40,25 @@ bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 # Initialize Klippy API
 klippy = KlippyAPI(base_url)
 
+# Define GStreamer pipeline
+gst_pipeline = [
+    'gst-launch-1.0',
+    '-v',
+    'v4l2src',
+    'device=/dev/video0',
+    '!', 'image/jpeg,width=1920,height=1080,framerate=30/1',
+    '!', 'jpegdec',
+    '!', 'videoconvert',
+    '!', 'x264enc',
+    'tune=zerolatency',
+    'bitrate=2000',
+    'speed-preset=superfast',
+    '!', 'flvmux',
+    'streamable=true',
+    '!', 'rtmpsink',
+    'location=rtmp://localhost/live/stream'  # Ensure no quotes around the URL
+]
+stream_launcher = StreamLauncher(gst_pipeline)
 # Create Flask app
 app = Flask(__name__)
 
@@ -229,6 +252,8 @@ def send_action_list(chat_id):
         "• /temperatures - Get current temperatures\n"
         "• /motion_state - Get motion state\n"
         "• /status - Get a snapshot + job status\n"
+        "• /stream - Start the live stream\n"
+        "• /stop_stream - Stop the live stream\n"
     )
     bot.send_message(chat_id, f"🤖 <b>Available Actions</b>:\n{actions}", parse_mode="HTML")
 
@@ -589,7 +614,73 @@ def cmd_status(message):
         else:
             bot.reply_to(message, idle_text + "\n\nNo recent frame found.")
 
+
+@bot.message_handler(commands=['stream'])
+def cmd_stream(message):
+    """
+    /stream: Starts the GStreamer pipeline and provides the stream link.
+    """
+    if message.chat.id not in CHAT_IDS:
+        bot.reply_to(message, "🚫 You are not authorized to use this command.")
+        return
+
+    def handle_stream():
+        # Check if the stream is already running
+        if stream_launcher.is_stream_running():
+            bot.send_message(message.chat.id, "🔄 The stream is already running.")
+            return
+
+        # Start the stream
+        stream_launcher.start_stream()
+
+        # Wait briefly to allow the stream to start
+        time.sleep(2)  # Adjust as needed based on startup time
+
+        # Check again if the stream is running
+        if stream_launcher.is_stream_running():
+            # Provide the stream link
+            # Replace 'your_public_ip_or_domain' with your actual public IP or domain
+            stream_url = "http://192.168.31.109:8080/"  # Example: "http://123.45.67.89:8080/"
+            bot.send_message(message.chat.id, f"✅ Stream started successfully!\nWatch it here: {stream_url}")
+        else:
+            bot.send_message(message.chat.id, "❌ Failed to start the stream. Please check the server logs.")
+
+    # Start the handle_stream function in a new thread
+    threading.Thread(target=handle_stream, daemon=True).start()
+
 ################################################################################
+#                           /stop_stream COMMAND
+################################################################################
+
+@bot.message_handler(commands=['stop_stream'])
+def cmd_stop_stream(message):
+    """
+    /stop_stream: Stops the GStreamer pipeline.
+    """
+    if message.chat.id not in CHAT_IDS:
+        bot.reply_to(message, "🚫 You are not authorized to use this command.")
+        return
+
+    def handle_stop_stream():
+        # Check if the stream is running
+        if not stream_launcher.is_stream_running():
+            bot.send_message(message.chat.id, "⚠️ The stream is not currently running.")
+            return
+
+        # Stop the stream
+        stream_launcher.stop_stream()
+
+        # Wait briefly to allow the stream to stop
+        time.sleep(2)  # Adjust as needed based on shutdown time
+
+        # Check again if the stream is stopped
+        if not stream_launcher.is_stream_running():
+            bot.send_message(message.chat.id, "🛑 Stream stopped successfully.")
+        else:
+            bot.send_message(message.chat.id, "❌ Failed to stop the stream. Please check the server logs.")
+
+    # Start the handle_stop_stream function in a new thread
+    threading.Thread(target=handle_stop_stream, daemon=True).start()################################################################################
 #                      STARTING BOT + FLASK SERVER
 ################################################################################
 
@@ -598,10 +689,25 @@ def start_bot_polling():
 
 if __name__ == "__main__":
     # 1) Start the bot in a background thread
+
+# Handle termination signals to gracefully shutdown the stream
+    def signal_handler(sig, frame):
+        logging.info("Received termination signal. Stopping stream and exiting...")
+        stream_launcher.stop_stream()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     bot_thread = threading.Thread(target=start_bot_polling, daemon=True)
     bot_thread.start()
 
     # 2) Start the Flask server (blocking)
     logging.info("Starting Flask server on port 5000...")
-    app.run(host="0.0.0.0", port=5000)
+    try:
+        app.run(host="0.0.0.0", port=5000)
+    except KeyboardInterrupt:
+        logging.info("KeyboardInterrupt received. Stopping stream and exiting...")
+        stream_launcher.stop_stream()
+        sys.exit(0)
 
