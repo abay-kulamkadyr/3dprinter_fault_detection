@@ -190,4 +190,3 @@ if __name__ == "__main__":
 
     except requests.exceptions.RequestException as e:
         print("An error occurred:", e)
-

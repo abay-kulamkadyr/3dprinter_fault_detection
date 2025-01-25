@@ -67,7 +67,7 @@ def main():
             for position in mouse_positions:
                 cv2.circle(frame_copy, position, 20, (0, 255, 0), -1)
 
-            cv2.imshow("Set Boundary", frame_copy)
+            #cv2.imshow("Set Boundary", frame_copy)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 logging.info("Exiting boundary setup.")
