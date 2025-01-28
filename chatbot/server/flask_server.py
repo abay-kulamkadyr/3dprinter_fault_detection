@@ -9,7 +9,7 @@ app = Flask(__name__)
 def detection_event():
     data = request.json or {}
     image_path = data.get("image_path", None)
-
+    print("from chatbot image path" + image_path)
     alert_text = "⚠️ Fault detected during 3D printing! ⚠️"
     for chat_id in CHAT_IDS:
         bot.send_message(chat_id, alert_text)

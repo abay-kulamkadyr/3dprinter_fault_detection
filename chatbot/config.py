@@ -12,6 +12,8 @@ CHAT_IDS = [
     52338470,
     987449095,
     471938014,
+    241087236,
+    686623063,
 ]
 
 # Klipper base URL
@@ -23,13 +25,13 @@ GST_PIPELINE = [
     '-v',
     'v4l2src',
     'device=/dev/video0',
-    '!', 'image/jpeg,width=1920,height=1080,framerate=30/1',
+    '!', 'image/jpeg,width=640,height=480,framerate=30/1',
     '!', 'jpegdec',
     '!', 'videoconvert',
     '!', 'x264enc',
     'tune=zerolatency',
     'bitrate=2000',
-    'speed-preset=superfast',
+    'speed-preset=ultrafast',
     '!', 'flvmux',
     'streamable=true',
     '!', 'rtmpsink',

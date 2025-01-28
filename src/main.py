@@ -1,136 +1,158 @@
-import os
-import cv2
-import time
 import logging
-import requests
+import time
+import cv2
 import numpy as np
-from detection.detectron2_detection import Detectron2Detection
-from utils.camera_gstreamer_module import CameraGStreamerPipeline
+from typing import Optional, Tuple
+from config import settings
+from utils.camera import Camera, FrameProcessor
+from detectors.detectron2_detector import Detectron2Detector
+from utils.notifications import NotificationHandler
+from interfaces.boundary_manager import BoundaryManager
 
-# Global variables for mouse positions and boundary state
-mouse_positions = []
-boundary_set = False
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
-chat_ids = [1969139002, 1430460059, 52338470, 987449095]
+logger = logging.getLogger(__name__)
 
-def notify_on_detection(image_path):
-    """
-    Called by Detectron2 whenever a fault is detected.
-    We POST to the bot's Flask endpoint with the `image_path`.
-    """
-    try:
-        # If the bot.py is running locally on port 5000:
-        url = "http://127.0.0.1:5000/detection_event"
-        data = {"image_path": image_path}
-        response = requests.post(url, json=data)
-        response.raise_for_status()
-        logging.info("Successfully notified bot of detection event.")
-    except Exception as e:
-        logging.error(f"Failed to notify bot: {e}")
+class FaultDetectionSystem:
+    """Main application controller for fault detection system."""
+    
+    def __init__(self):
+        self.camera = Camera()
+        self.detector = Detectron2Detector()
+        self.notifier = NotificationHandler()
+        self.boundary_manager = BoundaryManager()
+        self.detection_interval = settings.DETECTION_CONFIG["detection_interval"]
+        self.boundary: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None
+        self.last_frame_time = time.time()
+        self.last_detection_time = 0.0
+        self.last_frame = None
 
-def mouse_callback(event, x, y, flags, param):
-    """
-    Handles mouse clicks to set the boundary.
-    """
-    global mouse_positions, boundary_set
-    if event == cv2.EVENT_LBUTTONDOWN:
-        logging.info(f"Click registered at: ({x}, {y})")
-        mouse_positions.append((x, y))
-        if len(mouse_positions) == 2:
-            boundary_set = True
-
-def main():
-    global mouse_positions, boundary_set
-
-    # Configuration
-    weights_file = "../data/models/model_final.pth"
-    detections_dir = "../data/detections"
-    frames_dir = "../data/frames"
-    detection_interval = 180# Interval between detections in seconds
-
-    # Initialize detection and video pipeline
-    detectron2 = Detectron2Detection(weights_file, detections_dir, detection_callback=notify_on_detection)
-    gstreamer = CameraGStreamerPipeline()
-
-    try:
-        gstreamer.open_pipeline()
-        frame = gstreamer.read_frame()
-
-        cv2.namedWindow("Set Boundary")
-        cv2.setMouseCallback("Set Boundary", mouse_callback)
-
-        # Boundary setup loop
-        while not boundary_set:
-            frame_copy = frame.copy()
-
-            # Draw all registered circles
-            for position in mouse_positions:
-                cv2.circle(frame_copy, position, 20, (0, 255, 0), -1)
-
-            #cv2.imshow("Set Boundary", frame_copy)
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                logging.info("Exiting boundary setup.")
-                return
-
-        top_left, bottom_right = mouse_positions[0], mouse_positions[1]
-        logging.info(f"Boundary set: Top-left: {top_left}, Bottom-right: {bottom_right}")
-
-        # Show the final boundary
-        frame_copy = frame.copy()
-        cv2.rectangle(frame_copy, top_left, bottom_right, (0, 255, 0), 2)
-        cv2.imshow("Set Boundary", frame_copy)
-
-        # Wait for user confirmation to proceed
-        logging.info("Press any key to continue or 'q' to exit.")
-        if cv2.waitKey(0) & 0xFF == ord('q'):
-            logging.info("Exiting after boundary setup.")
+    def run(self):
+        """Main execution flow."""
+        initial_frame = self._get_initial_frame()
+        if initial_frame is None:
             return
 
-        cv2.destroyWindow("Set Boundary")
+        self.boundary = self.boundary_manager.set_boundary(initial_frame)
+        if not self.boundary:
+            return
 
-        prev_frame_time = 0
-        last_detection_time = time.time()
+        self._main_loop()
 
-        # Main detection loop
+    def _get_initial_frame(self) -> Optional[bytes]:
+        """Capture initial frame for boundary selection."""
+        try:
+            with self.camera.session():
+                frame = self.camera.read()
+                if frame is not None:
+                    # Convert to BGR if needed (some cameras return RGB)
+                    if frame.shape[2] == 3:  # Assuming OpenCV default BGR
+                        return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    return frame
+                logger.error("Failed to capture initial frame")
+                return None
+        except Exception as e:
+            logger.error(f"Camera initialization failed: {str(e)}")
+            return None    
+
+    def _main_loop(self):
+        """Main processing loop with camera resource management."""
         while True:
-            frame = gstreamer.read_frame()
-
-            # Crop the frame based on boundary
-            x1, y1 = top_left
-            x2, y2 = bottom_right
-            cropped_frame = frame[y1:y2, x1:x2]
-
-            # Perform detection at intervals
             current_time = time.time()
-            if current_time - last_detection_time >= detection_interval:
-                logging.info("Running detection on cropped region...")
-                img_counter = int(time.time())
-                processed_frame = detectron2.process_frame(cropped_frame, img_counter)
-
-                if processed_frame is not None:
-                    frame[y1:y2, x1:x2] = processed_frame
-                last_detection_time = current_time
-
-            # Draw boundary and show FPS
-            new_frame_time = time.time()
-            fps = 1 / (new_frame_time - prev_frame_time)
-            prev_frame_time = new_frame_time
-            fps_text = f"FPS: {int(fps)}"
-            cv2.putText(frame, fps_text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-
-            # Display the live feed
-            cv2.imshow("Detectron2 Detection", frame)
-            last_frame_path = os.path.join(frames_dir, "latest_frame.jpg")  
-            cv2.imwrite(last_frame_path, frame)            
+            
+            # Capture and process frame only at detection intervals
+            if current_time - self.last_detection_time >= self.detection_interval:
+                self._perform_detection_capture()
+                self.last_detection_time = current_time
+                
+            # Display the latest frame or standby message
+            self._display_status()
+            
+            # Exit condition
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
-    finally:
-        gstreamer.close_pipeline()
-        cv2.destroyAllWindows()
+    def _display_status(self):
+        """Display system status with camera resource management."""
+        display_frame = np.zeros((500, 500, 3), dtype=np.uint8)  # Black background
+        time_remaining = self.detection_interval - (time.time() - self.last_detection_time)
+        
+        if self.last_frame is not None:
+            # Show last detection result
+            resized = cv2.resize(self.last_frame, (500, 500))
+            display_frame = resized
+            
+            # Add time remaining overlay
+            cv2.putText(
+                display_frame, 
+                f"Next capture in: {max(0, int(time_remaining))}s",
+                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                (0, 255, 0), 2
+            )
+        else:
+            # Show standby message
+            cv2.putText(
+                display_frame, 
+                f"System Ready - Waiting for first detection,\nNext capture in: {max(0, int(time_remaining))}s",
+                (50, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                (0, 255, 0), 2
+            )
 
+        cv2.imshow("Fault Detection System", display_frame)
+
+    def _perform_detection_capture(self):
+        """Handle camera acquisition and detection processing."""
+        try:
+            with self.camera.session():
+                frame = self.camera.read()
+                if frame is not None:
+                    self._process_detection_frame(frame)
+        except Exception as e:
+            logger.error(f"Detection capture failed: {str(e)}")
+
+    def _process_detection_frame(self, frame: bytes):
+        """Process and store detection results."""
+        cropped = FrameProcessor.crop_frame(frame, *self.boundary)
+        processed = self.detector.process_frame(cropped, time.time())
+        
+        if processed is not None:
+            x1, y1 = self.boundary[0]
+            x2, y2 = self.boundary[1]
+            frame[y1:y2, x1:x2] = processed
+            self.last_frame = frame
+            timestamp = int(time.time())
+            self.detector._save_detection(frame, timestamp)
+            self.notifier.send_detection_alert(
+            str(self.detector.config["detections_dir"] / f"detection_{timestamp}.jpg")
+            )
+        self.detector._save_latest_frame(frame, time.time)
+
+    def _display_frame(self, frame: bytes):
+        """Handle frame display with FPS calculation and boundary drawing."""
+        try:
+            # Calculate FPS
+            current_time = time.time()
+            fps = 1 / (current_time - self.last_frame_time)
+            self.last_frame_time = current_time
+            
+            # Add FPS overlay
+            FrameProcessor.add_fps(frame, fps)
+
+            # Display the frame
+            cv2.imshow("Fault Detection System", frame)
+            
+        except Exception as e:
+            logger.error(f"Frame display error: {str(e)}")
 
 if __name__ == "__main__":
-    main()
-
+    try:
+        system = FaultDetectionSystem()
+        system.run()
+    except KeyboardInterrupt:
+        logger.info("Application terminated by user")
+    finally:
+        cv2.destroyAllWindows()
+        logger.info("Application shutdown complete")

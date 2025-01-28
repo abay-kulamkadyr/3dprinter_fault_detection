@@ -31,6 +31,7 @@ def register_commands(bot: TeleBot):
             bot.reply_to(message, "🤖 Howdy! I’m your 3D Printer Bot. How can I help?")
             send_action_list(bot, message.chat.id)
         else:
+            print("chat id = " + str(message.chat.id))
             bot.reply_to(message, "🚫 You are not authorized to use this bot.")
 
     @bot.message_handler(commands=['info'])
