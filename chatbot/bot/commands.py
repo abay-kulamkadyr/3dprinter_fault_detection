@@ -12,6 +12,7 @@ from api.klippy_api import KlippyAPI
 from config import CHAT_IDS, KLIPPER_BASE_URL
 from bot.stream import StreamLauncher
 from bot.shared_state import pending_confirmations
+from telebot import types
 import logging
 import time
 import threading
@@ -22,6 +23,31 @@ klippy = KlippyAPI(KLIPPER_BASE_URL)
 # Initialize StreamLauncher
 stream_launcher = StreamLauncher()
 
+#Markup buttons for when dection happen
+markup_on_detection = types.InlineKeyboardMarkup(row_width=2)
+resume_printing_btn = types.InlineKeyboardButton("Resume Printing", callback_data = "answer")
+printer_status_btn = types.InlineKeyboardButton("Get Printer Status", callback_data="answer")
+start_stream_btn = types.InlineKeyboardButton("View Live Stream", callback_data="stream")
+
+markup_on_detection.add(resume_printing_btn, start_stream_btn, printer_status_btn)
+
+#Markup for all actions 
+markup_all = types.InlineKeyboardMarkup(row_width=3)
+info_btn = types.InlineKeyboardButton("Printer info", callback_data = "answer")
+list_btn = types.InlineKeyboardButton("List Printer Objects", callback_data = "answer")
+restart_host_btn = types.InlineKeyboardButton("Restart Host", callback_data = "answer")
+restart_firmware_btn = types.InlineKeyboardButton("Restart Firmware", callback_data = "answer")
+extruder_btn = types.InlineKeyboardButton("Get Extruder Info", callback_data = "answer")
+emergency_stop_btn = types.InlineKeyboardButton("Emergency Stop", callback_data = "answer")
+pause_btn = types.InlineKeyboardButton("Pause Printing", callback_data = "answer")
+temperatures_btn = types.InlineKeyboardButton("Get Temperatures", callback_data = "temperatures")
+motion_state_btn = types.InlineKeyboardButton("Motion State Info", callback_data = "answer")
+stop_steam_btn = types.InlineKeyboardButton("Stop Stream", callback_data = "stop_stream")
+status_btn = types.InlineKeyboardButton("Get Status and SnapShot", callback_data = "status")
+
+markup_all.add(info_btn, status_btn, temperatures_btn, motion_state_btn, start_stream_btn) 
+
+
 
 def register_commands(bot: TeleBot):
     """Register all command handlers with the bot."""
@@ -30,7 +56,7 @@ def register_commands(bot: TeleBot):
     def cmd_start(message):
         if message.chat.id in CHAT_IDS:
             bot.reply_to(message, "🤖 Howdy! I’m your 3D Printer Bot. How can I help?")
-            send_action_list(bot, message.chat.id)
+            send_action_list(bot, message.chat.id, reply_markup=markup_all)
         else:
             print("chat id = " + str(message.chat.id))
             bot.reply_to(message, "🚫 You are not authorized to use this bot.")
@@ -302,8 +328,14 @@ def register_commands(bot: TeleBot):
                     bot.reply_to(message, idle_text + "\n\nNo recent frame found.")
 
         except Exception as e:
+            latest_frame_path = os.path.join("../data/frames/", "latest_frame.jpg")
+            if os.path.isfile(latest_frame_path):
+                with open(latest_frame_path, "rb") as f:
+                    bot.send_photo(message.chat.id, f)
+            else:
+                bot.send_message(message.chat.id, "No recent frame found on disk.")
             logging.error(f"Error in /status command: {e}")
-            bot.reply_to(message, "❌ Could not retrieve printer status.")
+            bot.reply_to(message, "❌ Could not retrieve printer status.", reply_markup=markup_on_detection)
 
     @bot.message_handler(commands=['stream'])
     def cmd_stream(message):
@@ -326,7 +358,18 @@ def register_commands(bot: TeleBot):
                 bot.send_message(message.chat.id, "❌ Failed to start the stream. Please check the server logs.")
 
         threading.Thread(target=handle_stream, daemon=True).start()
-
+    @bot.callback_query_handler(func=lambda call:True)
+    def answer(callback):
+        if callback.message:
+            if callback.data == "stream":
+                cmd_stream(callback.message)
+            if callback.data == "stop_stream":
+                cmd_stop_stream(callback.message)
+            if callback.data == "status":
+                cmd_status(callback.message)
+            if callback.data == "temperatures":
+                cmd_temperatures(callback.message)
+                
     @bot.message_handler(commands=['stop_stream'])
     def cmd_stop_stream(message):
         if message.chat.id not in CHAT_IDS:
@@ -345,5 +388,6 @@ def register_commands(bot: TeleBot):
                 bot.send_message(message.chat.id, "🛑 Stream stopped successfully.")
             else:
                 bot.send_message(message.chat.id, "❌ Failed to stop the stream. Please check the server logs.")
+        
 
         threading.Thread(target=handle_stop_stream, daemon=True).start()

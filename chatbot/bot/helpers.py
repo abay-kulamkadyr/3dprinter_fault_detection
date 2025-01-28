@@ -83,7 +83,7 @@ def parse_job_status(job_status: dict) -> str:
     return text
 
 
-def send_action_list(bot, chat_id):
+def send_action_list(bot, chat_id, reply_markup=None):
     """Sends a list of all available actions with emojis."""
     actions = (
         "• /info - Get printer info\n"
@@ -100,7 +100,7 @@ def send_action_list(bot, chat_id):
         "• /stream - Start the live stream\n"
         "• /stop_stream - Stop the live stream\n"
     )
-    bot.send_message(chat_id, f"🤖 <b>Available Actions</b>:\n{actions}", parse_mode="HTML")
+    bot.send_message(chat_id, f"🤖 <b>Available Actions</b>:\n{actions}", parse_mode="HTML", reply_markup=reply_markup)
 
 
 def needs_confirmation(user_id: int, command_name: str) -> bool:
