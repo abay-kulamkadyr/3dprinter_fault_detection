@@ -1,4 +1,6 @@
 from bot.shared_state import pending_confirmations
+
+
 def parse_printer_info(info: dict) -> str:
     """Extracts and formats the most important fields from the /info command result."""
     result = info.get("result", {})
@@ -18,6 +20,7 @@ def parse_printer_info(info: dict) -> str:
     )
     return text
 
+
 def parse_printer_objects(objects_data: dict) -> str:
     """Parse the response from /list."""
     result = objects_data.get("result", {})
@@ -27,6 +30,7 @@ def parse_printer_objects(objects_data: dict) -> str:
 
     bullet_items = "\n".join([f"• {obj}" for obj in obj_list])
     return f"🗃 <b>Printer Objects</b>:\n{bullet_items}"
+
 
 def parse_extruder_status(data: dict) -> str:
     """Parse the /extruder result."""
@@ -42,6 +46,7 @@ def parse_extruder_status(data: dict) -> str:
     )
     return text
 
+
 def parse_motion_state(data: dict) -> str:
     """Parse the /motion_state result."""
     result = data.get("result", {})
@@ -56,6 +61,7 @@ def parse_motion_state(data: dict) -> str:
         f"• Current Position: X={position[0]:.2f}, Y={position[1]:.2f}, Z={position[2]:.2f}\n"
     )
     return text
+
 
 def parse_job_status(job_status: dict) -> str:
     """Parse the /job_status result."""
@@ -76,6 +82,7 @@ def parse_job_status(job_status: dict) -> str:
     )
     return text
 
+
 def send_action_list(bot, chat_id):
     """Sends a list of all available actions with emojis."""
     actions = (
@@ -94,6 +101,7 @@ def send_action_list(bot, chat_id):
         "• /stop_stream - Stop the live stream\n"
     )
     bot.send_message(chat_id, f"🤖 <b>Available Actions</b>:\n{actions}", parse_mode="HTML")
+
 
 def needs_confirmation(user_id: int, command_name: str) -> bool:
     """Checks if a command requires confirmation."""

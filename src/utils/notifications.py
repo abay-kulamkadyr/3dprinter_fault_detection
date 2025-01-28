@@ -5,9 +5,10 @@ from config.settings import NOTIFICATION_CONFIG
 
 logger = logging.getLogger(__name__)
 
+
 class NotificationHandler:
     """Handles detection event notifications."""
-    
+
     def __init__(self):
         self.config = NOTIFICATION_CONFIG
 
@@ -23,9 +24,9 @@ class NotificationHandler:
                 response.raise_for_status()
                 logger.info("Detection notification sent successfully")
                 return True
-                
+
             except Exception as e:
                 logger.warning(f"Notification attempt {attempt+1} failed: {str(e)}")
-                
+
         logger.error("All notification attempts failed")
         return False

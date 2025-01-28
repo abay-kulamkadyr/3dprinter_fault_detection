@@ -16,9 +16,10 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+
 class FaultDetectionSystem:
     """Main application controller for fault detection system."""
-    
+
     def __init__(self):
         self.camera = Camera()
         self.detector = Detectron2Detector()
@@ -56,21 +57,21 @@ class FaultDetectionSystem:
                 return None
         except Exception as e:
             logger.error(f"Camera initialization failed: {str(e)}")
-            return None    
+            return None
 
     def _main_loop(self):
         """Main processing loop with camera resource management."""
         while True:
             current_time = time.time()
-            
+
             # Capture and process frame only at detection intervals
             if current_time - self.last_detection_time >= self.detection_interval:
                 self._perform_detection_capture()
                 self.last_detection_time = current_time
-                
+
             # Display the latest frame or standby message
             self._display_status()
-            
+
             # Exit condition
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -79,15 +80,15 @@ class FaultDetectionSystem:
         """Display system status with camera resource management."""
         display_frame = np.zeros((500, 500, 3), dtype=np.uint8)  # Black background
         time_remaining = self.detection_interval - (time.time() - self.last_detection_time)
-        
+
         if self.last_frame is not None:
             # Show last detection result
             resized = cv2.resize(self.last_frame, (500, 500))
             display_frame = resized
-            
+
             # Add time remaining overlay
             cv2.putText(
-                display_frame, 
+                display_frame,
                 f"Next capture in: {max(0, int(time_remaining))}s",
                 (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
                 (0, 255, 0), 2
@@ -95,7 +96,7 @@ class FaultDetectionSystem:
         else:
             # Show standby message
             cv2.putText(
-                display_frame, 
+                display_frame,
                 f"System Ready - Waiting for first detection,\nNext capture in: {max(0, int(time_remaining))}s",
                 (50, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
                 (0, 255, 0), 2
@@ -117,7 +118,7 @@ class FaultDetectionSystem:
         """Process and store detection results."""
         cropped = FrameProcessor.crop_frame(frame, *self.boundary)
         processed = self.detector.process_frame(cropped, time.time())
-        
+
         if processed is not None:
             x1, y1 = self.boundary[0]
             x2, y2 = self.boundary[1]
@@ -126,7 +127,7 @@ class FaultDetectionSystem:
             timestamp = int(time.time())
             self.detector._save_detection(frame, timestamp)
             self.notifier.send_detection_alert(
-            str(self.detector.config["detections_dir"] / f"detection_{timestamp}.jpg")
+                str(self.detector.config["detections_dir"] / f"detection_{timestamp}.jpg")
             )
         self.detector._save_latest_frame(frame, time.time)
 
@@ -137,15 +138,16 @@ class FaultDetectionSystem:
             current_time = time.time()
             fps = 1 / (current_time - self.last_frame_time)
             self.last_frame_time = current_time
-            
+
             # Add FPS overlay
             FrameProcessor.add_fps(frame, fps)
 
             # Display the frame
             cv2.imshow("Fault Detection System", frame)
-            
+
         except Exception as e:
             logger.error(f"Frame display error: {str(e)}")
+
 
 if __name__ == "__main__":
     try:

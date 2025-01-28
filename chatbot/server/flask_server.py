@@ -5,6 +5,7 @@ from config import CHAT_IDS
 
 app = Flask(__name__)
 
+
 @app.route("/detection_event", methods=["POST"])
 def detection_event():
     data = request.json or {}

@@ -22,6 +22,7 @@ klippy = KlippyAPI(KLIPPER_BASE_URL)
 # Initialize StreamLauncher
 stream_launcher = StreamLauncher()
 
+
 def register_commands(bot: TeleBot):
     """Register all command handlers with the bot."""
 
@@ -346,4 +347,3 @@ def register_commands(bot: TeleBot):
                 bot.send_message(message.chat.id, "❌ Failed to stop the stream. Please check the server logs.")
 
         threading.Thread(target=handle_stop_stream, daemon=True).start()
-

@@ -8,10 +8,12 @@ from bot.stream import StreamLauncher
 
 stream_launcher = StreamLauncher()
 
+
 def signal_handler(sig, frame):
     logging.info("Received termination signal. Stopping stream and exiting...")
     stream_launcher.stop_stream()
     sys.exit(0)
+
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)

@@ -12,9 +12,10 @@ from config.settings import DETECTION_CONFIG
 
 logger = logging.getLogger(__name__)
 
+
 class Detectron2Detector:
     """Object detection handler using Detectron2 framework."""
-    
+
     def __init__(self):
         self.config = DETECTION_CONFIG
         self._validate_paths()
@@ -25,7 +26,7 @@ class Detectron2Detector:
         """Ensure required paths exist."""
         self.config["detections_dir"].mkdir(parents=True, exist_ok=True)
         self.config["frames_dir"].mkdir(parents=True, exist_ok=True)
-        
+
         if not self.config["model_weights"].exists():
             raise FileNotFoundError(f"Model weights not found at {self.config['model_weights']}")
 
@@ -59,7 +60,7 @@ class Detectron2Detector:
 
             logger.info(f"Detected {len(instances)} faults")
             return self._visualize_detections(frame, instances, timestamp)
-            
+
         except Exception as e:
             logger.error(f"Detection failed: {str(e)}")
             return None

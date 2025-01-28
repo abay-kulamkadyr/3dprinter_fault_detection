@@ -6,9 +6,10 @@ from config.settings import CAMERA_CONFIG
 
 logger = logging.getLogger(__name__)
 
+
 class Camera:
     """GStreamer camera pipeline manager with context support."""
-    
+
     def __init__(self):
         self.config = CAMERA_CONFIG
         self.cap: Optional[cv2.VideoCapture] = None
@@ -25,7 +26,7 @@ class Camera:
 
         pipeline = self._build_pipeline()
         self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
-        
+
         if not self.cap.isOpened():
             raise RuntimeError(f"Failed to open camera pipeline: {pipeline}")
 
@@ -38,7 +39,7 @@ class Camera:
         if not ret:
             logger.error("Failed to capture frame")
             return None
-            
+
         return frame
 
     def close(self):
@@ -57,9 +58,10 @@ class Camera:
         finally:
             self.close()
 
+
 class FrameProcessor:
     """Utility class for frame processing operations."""
-    
+
     @staticmethod
     def add_fps(frame: bytes, fps: float) -> bytes:
         """Annotate frame with FPS counter."""

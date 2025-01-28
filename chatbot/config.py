@@ -1,11 +1,11 @@
-import os 
+import os
 
-#Bot token 
+# Bot token
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN is not set in environment variables")
 
-#Authorized users
+# Authorized users
 CHAT_IDS = [
     1969139002,
     1430460059,
@@ -39,4 +39,3 @@ GST_PIPELINE = [
 ]
 
 STREAM_URL = "http://192.168.31.109:8080/"
-

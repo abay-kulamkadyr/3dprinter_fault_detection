@@ -2,6 +2,7 @@ import subprocess
 import logging
 from config import GST_PIPELINE
 
+
 class StreamLauncher:
     def __init__(self):
         self.process = None
