@@ -140,6 +140,50 @@ class KlippyAPI:
         response = self.session.get(url)
         response.raise_for_status()
         return response.json()
+    
+    def get_gcodes(self):
+        url = f"{self.base_url}/printer_data/gcodes"
+        response = self.session.get(url)
+        response.raise_for_status()
+        return response.json()
+
+    def upload_gcode(self, file_path, directory="gcodes"):
+        """
+        Upload a G-code file to the server.
+
+        :param file_path: Path to the G-code file to be uploaded.
+        :param directory: Directory in the server to upload to (default is 'gcodes').
+        :return: JSON response with server information about the uploaded file.
+        """
+        url = f"{self.base_url}/server/files/upload"
+
+        # Prepare the file for upload
+        files = {'file': open(file_path, 'rb')}
+        
+        # Add the directory path to the filename if needed
+        filename = file_path.split("/")[-1]
+        if directory:
+            filename = f"{directory}/{filename}"
+
+        # Prepare the form data with the correct Content-Type for file upload
+        data = {
+            'file': (filename, files['file'], 'application/octet-stream')
+        }
+
+        try:
+            # Send the request to upload the file
+            response = self.session.post(url, files=data)
+            response.raise_for_status()  # Raise an exception for HTTP errors
+
+            # Return the response JSON if the upload is successful
+            return response.json()
+
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to upload file: {e}")
+            return None
+        finally:
+            files['file'].close()
+
 
     def query_printer_object_status(self, query_params):
         """

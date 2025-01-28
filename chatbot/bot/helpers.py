@@ -1,5 +1,5 @@
 from bot.shared_state import pending_confirmations
-
+from telebot import types
 
 def parse_printer_info(info: dict) -> str:
     """Extracts and formats the most important fields from the /info command result."""
@@ -111,3 +111,6 @@ def needs_confirmation(user_id: int, command_name: str) -> bool:
     else:
         pending_confirmations[user_id] = command_name
         return True
+
+def remove_from_pending_confirmation(user_id: int, command_name: str) -> None:
+    pending_confirmations.pop(user_id, None)

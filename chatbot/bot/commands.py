@@ -6,8 +6,10 @@ from bot.helpers import (
     parse_motion_state,
     parse_job_status,
     send_action_list,
-    needs_confirmation
+    needs_confirmation, 
+    remove_from_pending_confirmation 
 )
+
 from api.klippy_api import KlippyAPI
 from config import CHAT_IDS, KLIPPER_BASE_URL
 from bot.stream import StreamLauncher
@@ -23,43 +25,79 @@ klippy = KlippyAPI(KLIPPER_BASE_URL)
 # Initialize StreamLauncher
 stream_launcher = StreamLauncher()
 
-#Markup buttons for when dection happen
-markup_on_detection = types.InlineKeyboardMarkup(row_width=2)
-resume_printing_btn = types.InlineKeyboardButton("Resume Printing", callback_data = "answer")
-printer_status_btn = types.InlineKeyboardButton("Get Printer Status", callback_data="answer")
-start_stream_btn = types.InlineKeyboardButton("View Live Stream", callback_data="stream")
+# ======================
+# INLINE KEYBOARD LAYOUTS
+# ======================
 
-markup_on_detection.add(resume_printing_btn, start_stream_btn, printer_status_btn)
+def create_main_markup():
+    """Create the main inline keyboard layout"""
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    
+    # Status and Monitoring
+    markup.row(
+        types.InlineKeyboardButton("🖨 Printer Status", callback_data="status"),
+        types.InlineKeyboardButton("🌡 Temperatures", callback_data="temperatures")
+    )
+    
+    # Print Controls
+    markup.row(
+        types.InlineKeyboardButton("⏸ Pause Print", callback_data="pause"),
+        types.InlineKeyboardButton("▶️ Resume Print", callback_data="resume")
+    )
+    
+    # Advanced Controls
+    markup.row(
+        types.InlineKeyboardButton("📷 Start Stream", callback_data="stream"),
+        types.InlineKeyboardButton("🛑 Stop Stream", callback_data="stop_stream")
+    )
+    
+    # System Controls
+    markup.row(
+        types.InlineKeyboardButton("🔁 Restart Host", callback_data="restart_host"),
+        types.InlineKeyboardButton("⚠️ Emergency Stop", callback_data="emergency_stop")
+    )
+    
+    # Additional Info
+    markup.row(
+        types.InlineKeyboardButton("📊 Motion State", callback_data="motion_state"),
+        types.InlineKeyboardButton("📜 Printer Objects", callback_data="list")
+    )
+    
+    return markup
 
-#Markup for all actions 
-markup_all = types.InlineKeyboardMarkup(row_width=3)
-info_btn = types.InlineKeyboardButton("Printer info", callback_data = "answer")
-list_btn = types.InlineKeyboardButton("List Printer Objects", callback_data = "answer")
-restart_host_btn = types.InlineKeyboardButton("Restart Host", callback_data = "answer")
-restart_firmware_btn = types.InlineKeyboardButton("Restart Firmware", callback_data = "answer")
-extruder_btn = types.InlineKeyboardButton("Get Extruder Info", callback_data = "answer")
-emergency_stop_btn = types.InlineKeyboardButton("Emergency Stop", callback_data = "answer")
-pause_btn = types.InlineKeyboardButton("Pause Printing", callback_data = "answer")
-temperatures_btn = types.InlineKeyboardButton("Get Temperatures", callback_data = "temperatures")
-motion_state_btn = types.InlineKeyboardButton("Motion State Info", callback_data = "answer")
-stop_steam_btn = types.InlineKeyboardButton("Stop Stream", callback_data = "stop_stream")
-status_btn = types.InlineKeyboardButton("Get Status and SnapShot", callback_data = "status")
-
-markup_all.add(info_btn, status_btn, temperatures_btn, motion_state_btn, start_stream_btn) 
-
-
+def create_confirmation_markup(command):
+    """Create confirmation buttons for critical actions"""
+    markup = types.InlineKeyboardMarkup()
+    markup.row(
+        types.InlineKeyboardButton("✅ Confirm", callback_data=f"confirm_{command}"),
+        types.InlineKeyboardButton("❌ Cancel", callback_data="cancel_action")
+    )
+    return markup
 
 def register_commands(bot: TeleBot):
     """Register all command handlers with the bot."""
-
-    @bot.message_handler(commands=['start'])
+    @bot.message_handler(commands=['start', 'help'])
     def cmd_start(message):
-        if message.chat.id in CHAT_IDS:
-            bot.reply_to(message, "🤖 Howdy! I’m your 3D Printer Bot. How can I help?")
-            send_action_list(bot, message.chat.id, reply_markup=markup_all)
-        else:
-            print("chat id = " + str(message.chat.id))
-            bot.reply_to(message, "🚫 You are not authorized to use this bot.")
+        if message.chat.id not in CHAT_IDS:
+            bot.reply_to(message, "🚫 Unauthorized access.")
+            return
+
+        welcome_msg = (
+            "🤖 *3D Printer Bot Ready!*\n"
+            "Use the buttons below to control your printer:\n"
+            "_________________________________\n"
+            "• 🖨 Status: Current printer state & snapshot\n"
+            "• 🌡 Temps: Extruder/Bed temperatures\n"
+            "• ⏸/▶️: Pause/Resume ongoing print\n"
+            "• 📷 Stream: Live camera monitoring\n"
+            "• 🔁 System: Host/Firmware controls\n"
+        )
+        bot.send_message(
+            message.chat.id,
+            welcome_msg,
+            parse_mode="HTML",
+            reply_markup=create_main_markup(),
+        )
 
     @bot.message_handler(commands=['info'])
     def cmd_info(message):
@@ -323,7 +361,7 @@ def register_commands(bot: TeleBot):
 
                 if os.path.isfile(latest_frame_path):
                     with open(latest_frame_path, "rb") as f:
-                        bot.send_photo(message.chat.id, f, caption=idle_text, parse_mode="HTML")
+                        bot.send_photo(message.chat.id, f, caption=idle_text, parse_mode="HTML", reply_markup=create_main_markup())
                 else:
                     bot.reply_to(message, idle_text + "\n\nNo recent frame found.")
 
@@ -335,7 +373,88 @@ def register_commands(bot: TeleBot):
             else:
                 bot.send_message(message.chat.id, "No recent frame found on disk.")
             logging.error(f"Error in /status command: {e}")
-            bot.reply_to(message, "❌ Could not retrieve printer status.", reply_markup=markup_on_detection)
+            bot.reply_to(message, "❌ Could not retrieve printer status.", reply_markup=create_main_markup())
+
+    @bot.message_handler(commands=['emergency_stop', 'restart_host', 'restart_firmware'])
+    def handle_dangerous_commands(message):
+        command = message.text.split('@')[0][1:]
+        if needs_confirmation(message.chat.id, command):
+            bot.reply_to(
+                message,
+                f"⚠️ Confirm {command.replace('_', ' ').title()}?",
+                reply_markup=create_confirmation_markup(command)
+            )
+        else:
+            execute_dangerous_command(command, message)
+
+    # ======================
+    # CALLBACK HANDLERS
+    # ======================
+    @bot.callback_query_handler(func=lambda call: True)
+    def handle_callbacks(call):
+        if call.data.startswith("confirm_"):
+            # Handle confirmation of dangerous commands
+            command = call.data.split("confirm_")[1]
+            execute_dangerous_command(command, call.message)
+        
+        elif call.data == "cancel_action":
+            # Handle cancellation of dangerous commands
+            bot.edit_message_text(
+                "⚠️ Action cancelled.",
+                call.message.chat.id,
+                call.message.message_id,
+                reply_markup=create_main_markup()
+            )
+            print("calling")
+            remove_from_pending_confirmation(call.message.chat.id, call.data)
+        
+
+        elif call.data in ['restart_host', 'emergency_stop', 'restart_firmware']:
+            # Handle dangerous commands initiated via button click
+            if needs_confirmation(call.message.chat.id, call.data):
+                bot.edit_message_text(
+                    f"⚠️ Confirm {call.data.replace('_', ' ').title()}?",
+                    chat_id=call.message.chat.id,          # Correct: chat_id
+                    message_id=call.message.message_id,    # Correct: message_id
+                    reply_markup=create_confirmation_markup(call.data)
+                )
+            else:
+                execute_dangerous_command(call.data, call.message)
+
+        else:
+            # Handle other regular commands
+            command_mapping = {
+                'status': cmd_status,
+                'temperatures': cmd_temperatures,
+                'pause': cmd_pause,
+                'resume': cmd_resume,
+                'stream': cmd_stream,
+                'stop_stream': cmd_stop_stream,
+                'motion_state': cmd_motion_state,
+                'list': cmd_list
+            }
+            if call.data in command_mapping:
+                command_mapping[call.data](call.message)
+            else:
+                bot.answer_callback_query(call.id, "⚠️ Command not implemented")
+
+    # ======================
+    # HELPER FUNCTIONS
+    # ======================
+
+    def execute_dangerous_command(command, message):
+        try:
+            if command == "emergency_stop":
+                response = klippy.emergency_stop()
+            elif command == "restart_host":
+                response = klippy.restart_host()
+            elif command == "restart_firmware":
+                response = klippy.firmware_restart()
+                
+            bot.reply_to(message, f"✅ {command.replace('_', ' ').title()} executed!")
+        except Exception as e:
+            logging.error(f"{command} error: {e}")
+            bot.reply_to(message, f"❌ {command.replace('_', ' ').title()} failed!")
 
     @bot.message_handler(commands=['stream'])
     def cmd_stream(message):
@@ -358,17 +477,6 @@ def register_commands(bot: TeleBot):
                 bot.send_message(message.chat.id, "❌ Failed to start the stream. Please check the server logs.")
 
         threading.Thread(target=handle_stream, daemon=True).start()
-    @bot.callback_query_handler(func=lambda call:True)
-    def answer(callback):
-        if callback.message:
-            if callback.data == "stream":
-                cmd_stream(callback.message)
-            if callback.data == "stop_stream":
-                cmd_stop_stream(callback.message)
-            if callback.data == "status":
-                cmd_status(callback.message)
-            if callback.data == "temperatures":
-                cmd_temperatures(callback.message)
                 
     @bot.message_handler(commands=['stop_stream'])
     def cmd_stop_stream(message):
@@ -388,6 +496,67 @@ def register_commands(bot: TeleBot):
                 bot.send_message(message.chat.id, "🛑 Stream stopped successfully.")
             else:
                 bot.send_message(message.chat.id, "❌ Failed to stop the stream. Please check the server logs.")
-        
-
         threading.Thread(target=handle_stop_stream, daemon=True).start()
+
+    @bot.message_handler(commands=['get_gcodes'])
+    def cmd_get_gcodes(message): 
+        if message.chat.id not in CHAT_IDS:
+            bot.reply_to(message, "🚫 You are not authorized to use this command.")
+            return
+        try:
+            info = klippy.get_gcodes()
+            bot.reply_to(message, info, parse_mode="HTML")
+        except Exception as e:
+            logging.error(f"Error in /get_gcodes command: {e}")
+            bot.reply_to(message, "❌Could not retrieve gcodes")
+
+# Function to check if a file is a G-code file
+    def is_gcode_file(file_path):
+        # Check if the file extension is one of the common G-code file extensions
+        valid_extensions = ['.gcode', '.gco', '.nc', '.bgcode']
+        _, extension = os.path.splitext(file_path)
+        
+        if extension.lower() not in valid_extensions:
+            return False
+        
+        # Optionally, check the contents of the file to ensure it's G-code
+        # Open the file and check if it contains common G-code commands
+        with open(file_path, 'rb') as file:
+            content = file.read(100)  # Read the first 100 characters to look for G-code commands
+            if b'G' in content or b'M' in content:  # Check for common G-code commands like G1, M104
+                return True
+        return False
+
+    @bot.message_handler(content_types=['document'])
+    def handle_document(message):
+        # Get the file ID of the document
+        file_id = message.document.file_id
+        
+        # Get the file details from Telegram API
+        file_info = bot.get_file(file_id)
+        
+        # Download the file
+        downloaded_file = bot.download_file(file_info.file_path)
+        
+        # Save the file locally
+        file_path = f"./gcodes/{message.document.file_name}"
+        with open(file_path, 'wb') as new_file:
+            new_file.write(downloaded_file)
+        
+        # Check if the file is a valid G-code file
+        if is_gcode_file(file_path):
+            bot.reply_to(message, f"Received your G-code file: {message.document.file_name}. Uploading to the 3D printer...")
+            
+            # Upload the file to Moonraker
+            upload_response = klippy.upload_gcode(file_path)
+            
+            # Respond back to the user based on the upload result
+            if upload_response:
+                bot.reply_to(message, f"File successfully uploaded to the 3D printer: {upload_response}")
+            else:
+                bot.reply_to(message, "There was an error uploading the file. Please try again.")
+        else:
+            bot.reply_to(message, "The file you sent is not a valid G-code file. Please send a G-code file.")
+
+        # Clean up the local file after processing
+        os.remove(file_path)

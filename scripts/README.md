@@ -1,19 +1,10 @@
-
 # OpenCV-Python Installation with GStreamer Support
 
 This guide provides instructions to install OpenCV-Python with GStreamer support on **Raspberry Pi 5 Model B Rev 1.0**. Follow the steps below to set up the environment.
 
 ---
 
-## Directory Structure
-```plaintext
-scripts/
-│
-├── GStreamer_CLI_shm_example.sh    # Example script demonstrating GStreamer CLI usage
-├── gstreamer_install.sh            # Script to install GStreamer dependencies
-├── install_opencv_dependencies.sh  # Script to install OpenCV build dependencies
-└── ReadMe.md                       # This guide
-```
+
 
 ---
 
@@ -21,7 +12,7 @@ scripts/
 
 This installation process is tailored for the following hardware:
 
-**Model**: Raspberry Pi 5 Model B Rev 1.0  
+**Model**: Raspberry Pi 5 Model B Rev 1.0
 **Operating System**: Raspberry Pi OS (or other compatible Debian-based distributions)
 
 ---
@@ -33,53 +24,77 @@ Ensure the following are installed on your system before proceeding:
 - `pip` and `virtualenv`
 - `git`
 
-**Note**: Make sure you are working within a Python virtual environment to avoid conflicts with system-wide packages. To create and activate a virtual environment:
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
 ---
 
 ## Installation Steps
 
 ### Step 1: Install GStreamer Dependencies
 
-Run the `gstreamer_install.sh` script to install the necessary GStreamer libraries and plugins:
+Navigate to the `scripts` directory and run the script:
 ```bash
 sudo chmod +x gstreamer_install.sh
 ./gstreamer_install.sh
 ```
 
-This script installs a comprehensive set of GStreamer components, including OpenGL and OpenCV integrations.
+This script installs the necessary GStreamer libraries and plugins.
 
 ---
 
 ### Step 2: Install OpenCV Dependencies
 
-Run the `install_opencv_dependencies.sh` script to install the required dependencies for building OpenCV:
+Navigate to the `scripts` directory and run:
 ```bash
 sudo chmod +x install_opencv_dependencies.sh
 ./install_opencv_dependencies.sh
 ```
 
+This script installs dependencies required to build OpenCV.
+
 ---
 
-### Step 3: GStreamer CLI Example
+### Step 3: Build and Install OpenCV with GStreamer Support
 
-An example script `GStreamer_CLI_shm_example.sh` is provided to demonstrate GStreamer usage via the command line. To run the script:
-```bash
-sudo chmod +x GStreamer_CLI_shm_example.sh
-./GStreamer_CLI_shm_example.sh
-```
+Follow these steps to clone, modify, build, and install OpenCV-Python with GStreamer support:
 
-This example showcases how to use GStreamer for shared memory (SHM) video streaming.
+1. Create a temporary directory for the build process:
+   ```bash
+   TMPDIR=$(mktemp -d)
+   cd "${TMPDIR}"
+   ```
+
+2. Clone the OpenCV-Python repository:
+   ```bash
+   OPENCV_VER="master"
+   git clone --branch ${OPENCV_VER} --depth 1 --recurse-submodules --shallow-submodules https://github.com/opencv/opencv-python.git opencv-python-${OPENCV_VER}
+   ```
+
+3. Modify the `ffmpeg_codecs.hpp` file to ensure compatibility with FFmpeg:
+   ```bash
+   cd opencv-python-${OPENCV_VER}
+   sed -i '62a #include <libavcodec/version.h>' path/to/ffmpeg_codecs.hpp
+   ```
+
+4. Set up build configurations:
+   ```bash
+   export ENABLE_CONTRIB=0
+   export CMAKE_ARGS="-DWITH_GSTREAMER=ON -DWITH_GTK=ON"
+   ```
+
+5. Build the OpenCV wheel:
+   ```bash
+   python3 -m pip wheel . --verbose --no-build-isolation
+   ```
+
+6. Install the OpenCV wheel:
+   ```bash
+   python3 -m pip install opencv_python*.whl
+   ```
 
 ---
 
 ## Verification
 
-To verify the OpenCV installation:
+To verify the installation:
 1. Open a Python shell.
 2. Run the following code:
 ```python
