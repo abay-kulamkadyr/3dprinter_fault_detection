@@ -236,48 +236,46 @@ python -m pip install 'git+https://github.com/facebookresearch/detectron2.git'
 ## Project Directory Structure
 
 ├── chatbot
-│   ├── api
-│   │   ├── klippy_api.py
-│   │   
-│   ├── bot
-│   │   ├── bot.py
-│   │   ├── commands.py
-│   │   ├── helpers.py
-│   │   ├── shared_state.py
-│   │   └── stream.py
-│   ├── config.py
-│   ├── gcodes
-│   ├── main.py
-│   ├── server
-│   │   ├── flask_server.py
-│   └── utils
-│       └── logging_setup.py
+│   ├── api
+│   │   ├── klippy_api.py
+│   ├── bot
+│   │   ├── bot.py
+│   │   ├── commands.py
+│   │   ├── helpers.py
+│   │   ├── shared_state.py
+│   │   └── stream.py
+│   ├── config.py
+│   ├── gcodes
+│   ├── main.py
+│   ├── server
+│   │   ├── flask_server.py
+│   └── utils
+│       └── logging_setup.py
 ├── configs
-│   ├── Base-RCNN-FPN.yaml
-│   └── mask_rcnn_X_101_32x8d_FPN_3x.yaml
+│   ├── Base-RCNN-FPN.yaml
+│   └── mask_rcnn_X_101_32x8d_FPN_3x.yaml
 ├── data
-│   ├── detections
-│   ├── frames
-│   └── models
-│       ├── best2.pt
-│       └── model_final.pth
+│   ├── detections
+│   ├── frames
+│   └── models
+│       ├── best2.pt
+│       └── model_final.pth
 ├── LICENSE
-├── list_dirs.sh
-├── pyproject.toml
 ├── README.md
 ├── requirements.txt
 ├── scripts
-│   ├── detectron2_install.sh
-│   ├── gstreamer_install.sh
-│   ├── install_opencv_dependencies.sh
-│   └── README.md
+│   ├── detectron2_install.sh
+│   ├── gstreamer_install.sh
+│   ├── install_opencv_dependencies.sh
+│   └── README.md
 └── src
     ├── config
-    │   └── settings.py
+    │   └── settings.py
     ├── detectors
-    │   ├── detectron2_detector.py
+    │   ├── detectron2_detector.py
+    │   └── __pycache__
     ├── interfaces
-    │   ├── boundary_manager.py
+    │   ├── boundary_manager.py
     ├── main.py
     ├── requirements.txt
     └── utils
