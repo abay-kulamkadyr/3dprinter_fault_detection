@@ -14,7 +14,6 @@ The **3D Printer Camera Capture and Chatbot Control System** is a solution that 
   - [2. Python Environment and .env Setup](#2-python-environment-and-env-setup)
   - [3. OpenCV-Python with GStreamer Support](#3-opencv-python-with-gstreamer-support)
   - [4. Detectron2 Installation](#4-detectron2-installation)
-- [Project Directory Structure](#project-directory-structure)
 - [Usage](#usage)
   - [Chatbot & Flask Server](#chatbot--flask-server)
   - [Fault Detection System](#fault-detection-system)
@@ -232,55 +231,6 @@ Install Detectron2 with the following command:
 ```bash
 python -m pip install 'git+https://github.com/facebookresearch/detectron2.git'
 ```
-
-## Project Directory Structure
-
-├── chatbot
-│   ├── api
-│   │   ├── klippy_api.py
-│   ├── bot
-│   │   ├── bot.py
-│   │   ├── commands.py
-│   │   ├── helpers.py
-│   │   ├── shared_state.py
-│   │   └── stream.py
-│   ├── config.py
-│   ├── gcodes
-│   ├── main.py
-│   ├── server
-│   │   ├── flask_server.py
-│   └── utils
-│       └── logging_setup.py
-├── configs
-│   ├── Base-RCNN-FPN.yaml
-│   └── mask_rcnn_X_101_32x8d_FPN_3x.yaml
-├── data
-│   ├── detections
-│   ├── frames
-│   └── models
-│       ├── best2.pt
-│       └── model_final.pth
-├── LICENSE
-├── README.md
-├── requirements.txt
-├── scripts
-│   ├── detectron2_install.sh
-│   ├── gstreamer_install.sh
-│   ├── install_opencv_dependencies.sh
-│   └── README.md
-└── src
-    ├── config
-    │   └── settings.py
-    ├── detectors
-    │   ├── detectron2_detector.py
-    │   └── __pycache__
-    ├── interfaces
-    │   ├── boundary_manager.py
-    ├── main.py
-    ├── requirements.txt
-    └── utils
-        ├── camera.py
-        ├── notifications.py
 
 ## Usage
 ### Chatbot & Flask Server
