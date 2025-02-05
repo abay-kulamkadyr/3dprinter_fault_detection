@@ -21,7 +21,7 @@ DETECTION_CONFIG = {
     "model_weights": PROJECT_ROOT / "data/models/model_final.pth",
     "detections_dir": PROJECT_ROOT / "data/detections",
     "frames_dir": PROJECT_ROOT / "data/frames",
-    "detection_interval": 180,  # seconds
+    "detection_interval": 60,  # seconds
     "confidence_threshold": 0.5,
     "device": "cpu"  # or "cuda"
 }

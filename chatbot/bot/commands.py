@@ -66,11 +66,11 @@ def create_main_markup():
     return markup
 
 def create_confirmation_markup(command):
-    """Create confirmation buttons for critical actions"""
+    """Create confirmation buttons for critical actions"""    
     markup = types.InlineKeyboardMarkup()
     markup.row(
-        types.InlineKeyboardButton("✅ Confirm", callback_data=f"confirm_{command}"),
-        types.InlineKeyboardButton("❌ Cancel", callback_data="cancel_action")
+        types.InlineKeyboardButton("✅ confirm", callback_data=f"confirm_{command}"),
+        types.InlineKeyboardButton("❌ cancel", callback_data="cancel_action")
     )
     return markup
 
@@ -158,66 +158,6 @@ def register_commands(bot: TeleBot):
         except Exception as e:
             logging.error(f"Error in /motion_state command: {e}")
             bot.reply_to(message, "❌ Could not retrieve motion state.")
-
-    @bot.message_handler(commands=['restart_host'])
-    def cmd_restart_host(message):
-        if message.chat.id not in CHAT_IDS:
-            bot.reply_to(message, "🚫 You are not authorized to use this bot.")
-            return
-
-        if needs_confirmation(message.chat.id, 'restart_host'):
-            bot.reply_to(
-                message,
-                "⚠️ You are about to restart the host. Type /restart_host again to confirm."
-            )
-            return
-
-        try:
-            response = klippy.restart_host()
-            bot.reply_to(message, f"🔄 Host restart response:\n{response}")
-        except Exception as e:
-            logging.error(f"Error in /restart_host command: {e}")
-            bot.reply_to(message, "❌ Could not restart host.")
-
-    @bot.message_handler(commands=['restart_firmware'])
-    def cmd_restart_firmware(message):
-        if message.chat.id not in CHAT_IDS:
-            bot.reply_to(message, "🚫 You are not authorized to use this bot.")
-            return
-
-        if needs_confirmation(message.chat.id, 'restart_firmware'):
-            bot.reply_to(
-                message,
-                "⚠️ You are about to restart the firmware. Type /restart_firmware again to confirm."
-            )
-            return
-
-        try:
-            response = klippy.firmware_restart()
-            bot.reply_to(message, f"🔄 Firmware restart response:\n{response}")
-        except Exception as e:
-            logging.error(f"Error in /restart_firmware command: {e}")
-            bot.reply_to(message, "❌ Could not restart firmware.")
-
-    @bot.message_handler(commands=['emergency_stop'])
-    def cmd_emergency_stop(message):
-        if message.chat.id not in CHAT_IDS:
-            bot.reply_to(message, "🚫 You are not authorized to use this bot.")
-            return
-
-        if needs_confirmation(message.chat.id, 'emergency_stop'):
-            bot.reply_to(
-                message,
-                "⚠️ EMERGENCY STOP requested. Type /emergency_stop again to confirm."
-            )
-            return
-
-        try:
-            response = klippy.emergency_stop()
-            bot.reply_to(message, f"🛑 Emergency Stop:\n{response}")
-        except Exception as e:
-            logging.error(f"Error in /emergency_stop command: {e}")
-            bot.reply_to(message, "❌ Could not perform emergency stop.")
 
     @bot.message_handler(commands=['pause'])
     def cmd_pause(message):
@@ -405,9 +345,7 @@ def register_commands(bot: TeleBot):
                 call.message.message_id,
                 reply_markup=create_main_markup()
             )
-            print("calling")
-            remove_from_pending_confirmation(call.message.chat.id, call.data)
-        
+            remove_from_pending_confirmation(call.message.chat.id)
 
         elif call.data in ['restart_host', 'emergency_stop', 'restart_firmware']:
             # Handle dangerous commands initiated via button click
@@ -450,8 +388,8 @@ def register_commands(bot: TeleBot):
                 response = klippy.restart_host()
             elif command == "restart_firmware":
                 response = klippy.firmware_restart()
-                
             bot.reply_to(message, f"✅ {command.replace('_', ' ').title()} executed!")
+
         except Exception as e:
             logging.error(f"{command} error: {e}")
             bot.reply_to(message, f"❌ {command.replace('_', ' ').title()} failed!")
@@ -498,6 +436,7 @@ def register_commands(bot: TeleBot):
                 bot.send_message(message.chat.id, "❌ Failed to stop the stream. Please check the server logs.")
         threading.Thread(target=handle_stop_stream, daemon=True).start()
 
+    #TODO: needs testing
     @bot.message_handler(commands=['get_gcodes'])
     def cmd_get_gcodes(message): 
         if message.chat.id not in CHAT_IDS:
