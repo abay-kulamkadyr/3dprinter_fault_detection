@@ -1,6 +1,7 @@
 from bot.shared_state import pending_confirmations
 from telebot import types
 
+
 def parse_printer_info(info: dict) -> str:
     """Extracts and formats the most important fields from the /info command result."""
     result = info.get("result", {})
@@ -102,6 +103,7 @@ def send_action_list(bot, chat_id, reply_markup=None):
     )
     bot.send_message(chat_id, f"🤖 <b>Available Actions</b>:\n{actions}", parse_mode="HTML", reply_markup=reply_markup)
 
+
 def needs_confirmation(user_id: int, command_name: str) -> bool:
     """Checks if a command requires confirmation."""
     if pending_confirmations.get(user_id) == command_name:
@@ -110,6 +112,7 @@ def needs_confirmation(user_id: int, command_name: str) -> bool:
     else:
         pending_confirmations[user_id] = command_name
         return True
+
 
 def remove_from_pending_confirmation(user_id: int) -> None:
     pending_confirmations.pop(user_id, None)

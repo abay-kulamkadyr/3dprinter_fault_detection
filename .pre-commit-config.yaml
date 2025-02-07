@@ -1,5 +1,0 @@
--   repo: https://github.com/hhatto/autopep8
-    rev: <desired-revision-or-tag>
-    hooks:
-    -   id: autopep8
-

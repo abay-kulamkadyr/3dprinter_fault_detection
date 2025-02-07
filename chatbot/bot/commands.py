@@ -6,8 +6,8 @@ from bot.helpers import (
     parse_motion_state,
     parse_job_status,
     send_action_list,
-    needs_confirmation, 
-    remove_from_pending_confirmation 
+    needs_confirmation,
+    remove_from_pending_confirmation
 )
 
 from api.klippy_api import KlippyAPI
@@ -29,50 +29,53 @@ stream_launcher = StreamLauncher()
 # INLINE KEYBOARD LAYOUTS
 # ======================
 
+
 def create_main_markup():
     """Create the main inline keyboard layout"""
     markup = types.InlineKeyboardMarkup(row_width=2)
-    
+
     # Status and Monitoring
     markup.row(
         types.InlineKeyboardButton("🖨 Printer Status", callback_data="status"),
         types.InlineKeyboardButton("🌡 Temperatures", callback_data="temperatures")
     )
-    
+
     # Print Controls
     markup.row(
         types.InlineKeyboardButton("⏸ Pause Print", callback_data="pause"),
         types.InlineKeyboardButton("▶️ Resume Print", callback_data="resume")
     )
-    
+
     # Advanced Controls
     markup.row(
         types.InlineKeyboardButton("📷 Start Stream", callback_data="stream"),
         types.InlineKeyboardButton("🛑 Stop Stream", callback_data="stop_stream")
     )
-    
+
     # System Controls
     markup.row(
         types.InlineKeyboardButton("🔁 Restart Host", callback_data="restart_host"),
         types.InlineKeyboardButton("⚠️ Emergency Stop", callback_data="emergency_stop")
     )
-    
+
     # Additional Info
     markup.row(
         types.InlineKeyboardButton("📊 Motion State", callback_data="motion_state"),
         types.InlineKeyboardButton("📜 Printer Objects", callback_data="list")
     )
-    
+
     return markup
 
+
 def create_confirmation_markup(command):
-    """Create confirmation buttons for critical actions"""    
+    """Create confirmation buttons for critical actions"""
     markup = types.InlineKeyboardMarkup()
     markup.row(
         types.InlineKeyboardButton("✅ confirm", callback_data=f"confirm_{command}"),
         types.InlineKeyboardButton("❌ cancel", callback_data="cancel_action")
     )
     return markup
+
 
 def register_commands(bot: TeleBot):
     """Register all command handlers with the bot."""
@@ -336,7 +339,7 @@ def register_commands(bot: TeleBot):
             # Handle confirmation of dangerous commands
             command = call.data.split("confirm_")[1]
             execute_dangerous_command(command, call.message)
-        
+
         elif call.data == "cancel_action":
             # Handle cancellation of dangerous commands
             bot.edit_message_text(
@@ -415,7 +418,7 @@ def register_commands(bot: TeleBot):
                 bot.send_message(message.chat.id, "❌ Failed to start the stream. Please check the server logs.")
 
         threading.Thread(target=handle_stream, daemon=True).start()
-                
+
     @bot.message_handler(commands=['stop_stream'])
     def cmd_stop_stream(message):
         if message.chat.id not in CHAT_IDS:
@@ -436,9 +439,9 @@ def register_commands(bot: TeleBot):
                 bot.send_message(message.chat.id, "❌ Failed to stop the stream. Please check the server logs.")
         threading.Thread(target=handle_stop_stream, daemon=True).start()
 
-    #TODO: needs testing
+    # TODO: needs testing
     @bot.message_handler(commands=['get_gcodes'])
-    def cmd_get_gcodes(message): 
+    def cmd_get_gcodes(message):
         if message.chat.id not in CHAT_IDS:
             bot.reply_to(message, "🚫 You are not authorized to use this command.")
             return
@@ -454,10 +457,10 @@ def register_commands(bot: TeleBot):
         # Check if the file extension is one of the common G-code file extensions
         valid_extensions = ['.gcode', '.gco', '.nc', '.bgcode']
         _, extension = os.path.splitext(file_path)
-        
+
         if extension.lower() not in valid_extensions:
             return False
-        
+
         # Optionally, check the contents of the file to ensure it's G-code
         # Open the file and check if it contains common G-code commands
         with open(file_path, 'rb') as file:
@@ -470,25 +473,25 @@ def register_commands(bot: TeleBot):
     def handle_document(message):
         # Get the file ID of the document
         file_id = message.document.file_id
-        
+
         # Get the file details from Telegram API
         file_info = bot.get_file(file_id)
-        
+
         # Download the file
         downloaded_file = bot.download_file(file_info.file_path)
-        
+
         # Save the file locally
         file_path = f"./gcodes/{message.document.file_name}"
         with open(file_path, 'wb') as new_file:
             new_file.write(downloaded_file)
-        
+
         # Check if the file is a valid G-code file
         if is_gcode_file(file_path):
             bot.reply_to(message, f"Received your G-code file: {message.document.file_name}. Uploading to the 3D printer...")
-            
+
             # Upload the file to Moonraker
             upload_response = klippy.upload_gcode(file_path)
-            
+
             # Respond back to the user based on the upload result
             if upload_response:
                 bot.reply_to(message, f"File successfully uploaded to the 3D printer: {upload_response}")

@@ -140,7 +140,7 @@ class KlippyAPI:
         response = self.session.get(url)
         response.raise_for_status()
         return response.json()
-    
+
     def get_gcodes(self):
         url = f"{self.base_url}/printer_data/gcodes"
         response = self.session.get(url)
@@ -159,7 +159,7 @@ class KlippyAPI:
 
         # Prepare the file for upload
         files = {'file': open(file_path, 'rb')}
-        
+
         # Add the directory path to the filename if needed
         filename = file_path.split("/")[-1]
         if directory:
@@ -183,7 +183,6 @@ class KlippyAPI:
             return None
         finally:
             files['file'].close()
-
 
     def query_printer_object_status(self, query_params):
         """
