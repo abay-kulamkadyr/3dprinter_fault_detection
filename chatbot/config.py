@@ -17,7 +17,7 @@ CHAT_IDS = [
 ]
 
 # Klipper base URL
-KLIPPER_BASE_URL = "http://192.168.31.100:7125"
+KLIPPER_BASE_URL = "http://192.168.31.177:7125"
 
 # GStreamer pipeline
 GST_PIPELINE = [

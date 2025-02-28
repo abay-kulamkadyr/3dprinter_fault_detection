@@ -2,6 +2,7 @@ import logging
 import time
 import cv2
 import numpy as np
+import os 
 from typing import Optional, Tuple
 from config import settings
 from utils.camera import Camera, FrameProcessor
@@ -36,8 +37,10 @@ class FaultDetectionSystem:
         initial_frame = self._get_initial_frame()
         if initial_frame is None:
             return
-
-        self.boundary = self.boundary_manager.set_boundary(initial_frame)
+        if os.environ.get("HOST") == 1:
+            self.boundary = self.boundary_manager.set_boundary(initial_frame)
+        else:
+            self.boundary = ((0, 0), (960, 540))
         if not self.boundary:
             return
 
@@ -101,8 +104,8 @@ class FaultDetectionSystem:
                 (50, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
                 (0, 255, 0), 2
             )
-
-        cv2.imshow("Fault Detection System", display_frame)
+        if os.environ.get("HOST") == 1:
+            cv2.imshow("Fault Detection System", display_frame)
 
     def _perform_detection_capture(self):
         """Handle camera acquisition and detection processing."""
@@ -143,7 +146,9 @@ class FaultDetectionSystem:
             FrameProcessor.add_fps(frame, fps)
 
             # Display the frame
-            cv2.imshow("Fault Detection System", frame)
+ 
+            if os.environ.get("HOST") == 1:
+                cv2.imshow("Fault Detection System", frame)
 
         except Exception as e:
             logger.error(f"Frame display error: {str(e)}")

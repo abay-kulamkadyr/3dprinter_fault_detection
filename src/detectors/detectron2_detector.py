@@ -12,7 +12,6 @@ from config.settings import DETECTION_CONFIG
 
 logger = logging.getLogger(__name__)
 
-
 class Detectron2Detector:
     """Object detection handler using Detectron2 framework."""
 

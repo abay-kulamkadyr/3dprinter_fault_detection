@@ -1,7 +1,9 @@
 [tool.autopep8]
-max_line_length = 120
-ignore = "E501,W6"
-in-place = true
+# Enable aggressive formatting (optional)
+aggressive = 2
+# Only include .py files
 recursive = true
-aggressive = 3
+exclude = ["*.md", "*.json", "*.yml", "*.yaml"]
+max_line_length = 100
+in-place = true
 

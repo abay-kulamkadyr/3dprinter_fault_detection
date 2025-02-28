@@ -37,8 +37,12 @@ class KlippyAPI:
 
         :return: JSON response containing printer info.
         """
-        url = f"{self.base_url}/printer/info"
-        response = self.session.get(url)
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
+        }
+        response = self.session.get(f"{self.base_url}/printer/info", headers=headers)
+
         response.raise_for_status()
         return response.json()
 
@@ -142,7 +146,7 @@ class KlippyAPI:
         return response.json()
 
     def get_gcodes(self):
-        url = f"{self.base_url}/printer_data/gcodes"
+        url = f"{self.base_url}/printer_data/"
         response = self.session.get(url)
         response.raise_for_status()
         return response.json()

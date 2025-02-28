@@ -42,8 +42,8 @@ def create_main_markup():
 
     # Print Controls
     markup.row(
+        types.InlineKeyboardButton("▶️ Resume Print", callback_data="resume"), 
         types.InlineKeyboardButton("⏸ Pause Print", callback_data="pause"),
-        types.InlineKeyboardButton("▶️ Resume Print", callback_data="resume")
     )
 
     # Advanced Controls
@@ -322,6 +322,7 @@ def register_commands(bot: TeleBot):
     def handle_dangerous_commands(message):
         command = message.text.split('@')[0][1:]
         if needs_confirmation(message.chat.id, command):
+            print("needs confirmation")
             bot.reply_to(
                 message,
                 f"⚠️ Confirm {command.replace('_', ' ').title()}?",
