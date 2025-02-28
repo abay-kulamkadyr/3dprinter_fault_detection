@@ -11,7 +11,7 @@ from bot.helpers import (
 )
 
 from api.klippy_api import KlippyAPI
-from config import CHAT_IDS, KLIPPER_BASE_URL
+from config import CHAT_IDS, KLIPPER_BASE_URL, STREAM_URL
 from bot.stream import StreamLauncher
 from bot.shared_state import pending_confirmations
 from telebot import types
@@ -19,6 +19,7 @@ import logging
 import time
 import threading
 import os
+
 # Initialize Klippy API
 klippy = KlippyAPI(KLIPPER_BASE_URL)
 
@@ -28,8 +29,6 @@ stream_launcher = StreamLauncher()
 # ======================
 # INLINE KEYBOARD LAYOUTS
 # ======================
-
-
 def create_main_markup():
     """Create the main inline keyboard layout"""
     markup = types.InlineKeyboardMarkup(row_width=2)
@@ -383,7 +382,6 @@ def register_commands(bot: TeleBot):
     # ======================
     # HELPER FUNCTIONS
     # ======================
-
     def execute_dangerous_command(command, message):
         try:
             if command == "emergency_stop":
@@ -413,8 +411,8 @@ def register_commands(bot: TeleBot):
             time.sleep(2)  # Allow stream to start
 
             if stream_launcher.is_stream_running():
-                stream_url = "http://192.168.31.109:8080/"
-                bot.send_message(message.chat.id, f"✅ Stream started successfully!\nWatch it here: {stream_url}")
+                stream_url = STREAM_URL
+                kbot.send_message(message.chat.id, f"✅ Stream started successfully!\nWatch it here: {stream_url}")
             else:
                 bot.send_message(message.chat.id, "❌ Failed to start the stream. Please check the server logs.")
 
@@ -432,6 +430,8 @@ def register_commands(bot: TeleBot):
                 return
 
             stream_launcher.stop_stream()
+
+            #TODO CHECK IF THISE REQUIRED 
             time.sleep(2)  # Allow stream to stop
 
             if not stream_launcher.is_stream_running():
@@ -439,67 +439,3 @@ def register_commands(bot: TeleBot):
             else:
                 bot.send_message(message.chat.id, "❌ Failed to stop the stream. Please check the server logs.")
         threading.Thread(target=handle_stop_stream, daemon=True).start()
-
-    # TODO: needs testing
-    @bot.message_handler(commands=['get_gcodes'])
-    def cmd_get_gcodes(message):
-        if message.chat.id not in CHAT_IDS:
-            bot.reply_to(message, "🚫 You are not authorized to use this command.")
-            return
-        try:
-            info = klippy.get_gcodes()
-            bot.reply_to(message, info, parse_mode="HTML")
-        except Exception as e:
-            logging.error(f"Error in /get_gcodes command: {e}")
-            bot.reply_to(message, "❌Could not retrieve gcodes")
-
-# Function to check if a file is a G-code file
-    def is_gcode_file(file_path):
-        # Check if the file extension is one of the common G-code file extensions
-        valid_extensions = ['.gcode', '.gco', '.nc', '.bgcode']
-        _, extension = os.path.splitext(file_path)
-
-        if extension.lower() not in valid_extensions:
-            return False
-
-        # Optionally, check the contents of the file to ensure it's G-code
-        # Open the file and check if it contains common G-code commands
-        with open(file_path, 'rb') as file:
-            content = file.read(100)  # Read the first 100 characters to look for G-code commands
-            if b'G' in content or b'M' in content:  # Check for common G-code commands like G1, M104
-                return True
-        return False
-
-    @bot.message_handler(content_types=['document'])
-    def handle_document(message):
-        # Get the file ID of the document
-        file_id = message.document.file_id
-
-        # Get the file details from Telegram API
-        file_info = bot.get_file(file_id)
-
-        # Download the file
-        downloaded_file = bot.download_file(file_info.file_path)
-
-        # Save the file locally
-        file_path = f"./gcodes/{message.document.file_name}"
-        with open(file_path, 'wb') as new_file:
-            new_file.write(downloaded_file)
-
-        # Check if the file is a valid G-code file
-        if is_gcode_file(file_path):
-            bot.reply_to(message, f"Received your G-code file: {message.document.file_name}. Uploading to the 3D printer...")
-
-            # Upload the file to Moonraker
-            upload_response = klippy.upload_gcode(file_path)
-
-            # Respond back to the user based on the upload result
-            if upload_response:
-                bot.reply_to(message, f"File successfully uploaded to the 3D printer: {upload_response}")
-            else:
-                bot.reply_to(message, "There was an error uploading the file. Please try again.")
-        else:
-            bot.reply_to(message, "The file you sent is not a valid G-code file. Please send a G-code file.")
-
-        # Clean up the local file after processing
-        os.remove(file_path)
